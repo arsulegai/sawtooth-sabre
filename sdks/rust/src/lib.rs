@@ -181,6 +181,23 @@ pub trait TransactionContext {
     ///
     /// * `addresses` - the addresses to delete
     fn delete_state_entries(&self, addresses: &[String]) -> Result<Vec<String>, WasmSdkError>;
+
+    /// add_event adds a new event to the execution result for this transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `event_type` -  This is used to subscribe to events. It should be globally unique and
+    ///          describe what, in general, has occured.
+    /// * `attributes` - Additional information about the event that is transparent to the
+    ///          validator. Attributes can be used by subscribers to filter the type of events
+    ///          they receive.
+    /// * `data` - Additional information about the event that is opaque to the validator.
+    fn add_event(
+        &self,
+        event_type: String,
+        attributes: Vec<(String, String)>,
+        data: &[u8],
+    ) -> Result<(), WasmSdkError>;
 }
 
 #[derive(Default)]
@@ -293,6 +310,64 @@ impl TransactionContext for SabreTransactionContext {
                 result_vec.push(addr);
             }
             Ok(result_vec)
+        }
+    }
+
+    fn add_event(
+        &self,
+        event_type: String,
+        attributes: Vec<(String, String)>,
+        data: &[u8],
+    ) -> Result<(), WasmSdkError> {
+        unsafe {
+            let event_type_buffer = WasmBuffer::new(&event_type.as_bytes())?;
+
+            if data.is_empty() {
+                return Err(WasmSdkError::InvalidTransaction(
+                    "No data to send in the event".into(),
+                ));
+            }
+            let data_buffer = WasmBuffer::new(data)?;
+
+            // Get attributes tuple stored in a collection
+            // Entry at odd index: Key
+            // Entry at event index: Value
+            let mut attributes_iter = attributes.iter();
+            let (head, head_data) = match attributes_iter.next() {
+                Some((key, value)) => (key, value),
+                None => {
+                    return Err(WasmSdkError::InvalidTransaction(
+                        "No attributes to be sent".into(),
+                    ))
+                }
+            };
+
+            let head_buffer = WasmBuffer::new(&head.as_bytes())?;
+            externs::create_collection(head_buffer.to_raw());
+
+            let head_data_buffer = WasmBuffer::new(&head_data.as_bytes())?;
+            externs::add_to_collection(head_buffer.to_raw(), head_data_buffer.to_raw());
+
+            for (key, value) in attributes_iter {
+                let key_buffer = WasmBuffer::new(key.as_bytes())?;
+                externs::add_to_collection(head_buffer.to_raw(), key_buffer.to_raw());
+                let value_buffer = WasmBuffer::new(value.as_bytes())?;
+                externs::add_to_collection(head_buffer.to_raw(), value_buffer.to_raw());
+            }
+
+            let result = externs::add_event(
+                event_type_buffer.to_raw(),
+                head_buffer.to_raw(),
+                data_buffer.to_raw(),
+            );
+
+            if result == 0 {
+                return Err(WasmSdkError::InvalidTransaction(
+                    "Unable to add event".into(),
+                ));
+            }
+
+            Ok(())
         }
     }
 }
