@@ -491,26 +491,34 @@ impl<'a> WasmExternals<'a> {
         event_type_ptr: u32,
         attribute_list_ptr: u32,
         data_ptr: u32,
+        data_len: u32,
     ) -> Result<Option<RuntimeValue>, Trap> {
         let attribute_list = match self.ptr_collections.get(&attribute_list_ptr) {
             Some(attributes) => attributes.clone(),
             None => return Ok(Some(RuntimeValue::I32(-1))),
         };
 
-        // if the length is not even return deserialization error
-        if (attribute_list.len() % 2) != 0 {
+        // if the length is even return deserialization error
+        // the list should have a starting element followed by key, value pair
+        if (attribute_list.len() % 2) == 0 {
             return Ok(Some(RuntimeValue::I32(-1)));
         }
 
         let mut attributes = Vec::new();
-        for entry in attribute_list.chunks(2) {
-            let key = self.ptr_to_string(entry[0]).map_err(ExternalsError::from)?;
-            let value = self.ptr_to_string(entry[1])?;
-            attributes.push((key, value));
+        if attribute_list.len() > 1 {
+            for entry in attribute_list[1..].chunks(2) {
+                let key = self.ptr_to_string(entry[0]).map_err(ExternalsError::from)?;
+                let value = self.ptr_to_string(entry[1]).map_err(ExternalsError::from)?;
+                attributes.push((key, value));
+            }
         }
 
         let event_type = self.ptr_to_string(event_type_ptr)?;
-        let data = self.ptr_to_vec(data_ptr)?;
+
+        let mut data = Vec::new();
+        if data_len > 1 {
+            data = self.ptr_to_vec(data_ptr)?;
+        }
 
         info!(
             "Attempting to add event, event_type: {:?}, attributes: {:?}, data: {:?}",
@@ -542,7 +550,8 @@ impl<'a> Externals for WasmExternals<'a> {
                 let event_type = args.nth(0);
                 let attributes = args.nth(1);
                 let data = args.nth(2);
-                self.add_event(event_type, attributes, data)
+                let data_len = args.nth(3);
+                self.add_event(event_type, attributes, data, data_len)
             }
             GET_PTR_LEN_IDX => {
                 let addr = args.nth(0);
@@ -683,7 +692,7 @@ impl<'a> ModuleImportResolver for WasmExternals<'a> {
             )),
             "add_event" => Ok(FuncInstance::alloc_host(
                 Signature::new(
-                    &[ValueType::I32, ValueType::I32, ValueType::I32][..],
+                    &[ValueType::I32, ValueType::I32, ValueType::I32, ValueType::I32][..],
                     Some(ValueType::I32),
                 ),
                 ADD_EVENT_IDX,
