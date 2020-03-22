@@ -320,48 +320,49 @@ impl TransactionContext for SabreTransactionContext {
         data: &[u8],
     ) -> Result<(), WasmSdkError> {
         unsafe {
+            // Get the WasmBuffer of event_type
             let event_type_buffer = WasmBuffer::new(&event_type.as_bytes())?;
 
-            if data.is_empty() {
+            // Get the WasmBuffer of data
+            // Use the len parameter to determine if the data
+            // was sent to the SDK. A dummy "data" is added here
+            // to pass through to the TP's extern method.
+            if (i32::max_value() as usize) < data.len() {
                 return Err(WasmSdkError::InvalidTransaction(
-                    "No data to send in the event".into(),
-                ));
+                    "Data size not supported by Sabre".into(),
+                ))
             }
-            let data_buffer = WasmBuffer::new(data)?;
-
-            // Get attributes tuple stored in a collection
-            // Entry at odd index: Key
-            // Entry at event index: Value
-            let mut attributes_iter = attributes.iter();
-            let (head, head_data) = match attributes_iter.next() {
-                Some((key, value)) => (key, value),
-                None => {
-                    return Err(WasmSdkError::InvalidTransaction(
-                        "No attributes to be sent".into(),
-                    ))
-                }
+            let data_buffer_len: i32 = data.len() as i32;
+            let data_buffer = if data_buffer_len == 0 {
+                WasmBuffer::new("data".as_bytes())?
+            } else {
+                WasmBuffer::new(data)?
             };
 
-            let head_buffer = WasmBuffer::new(&head.as_bytes())?;
-            externs::create_collection(head_buffer.to_raw());
-
-            let head_data_buffer = WasmBuffer::new(&head_data.as_bytes())?;
-            externs::add_to_collection(head_buffer.to_raw(), head_data_buffer.to_raw());
+            // Get attributes tuple stored in a collection
+            // List starts with a dummy entry "attributes", this is to allow empty
+            // attributes list from the SDK
+            // Entry at odd index: Key
+            // Entry at even index: Value
+            let attributes_iter = attributes.iter();
+            let attributes_buffer = WasmBuffer::new("attributes".as_bytes())?;
+            externs::create_collection(attributes_buffer.to_raw());
 
             for (key, value) in attributes_iter {
                 let key_buffer = WasmBuffer::new(key.as_bytes())?;
-                externs::add_to_collection(head_buffer.to_raw(), key_buffer.to_raw());
+                externs::add_to_collection(attributes_buffer.to_raw(), key_buffer.to_raw());
                 let value_buffer = WasmBuffer::new(value.as_bytes())?;
-                externs::add_to_collection(head_buffer.to_raw(), value_buffer.to_raw());
+                externs::add_to_collection(attributes_buffer.to_raw(), value_buffer.to_raw());
             }
 
             let result = externs::add_event(
                 event_type_buffer.to_raw(),
-                head_buffer.to_raw(),
+                attributes_buffer.to_raw(),
                 data_buffer.to_raw(),
+                data_buffer_len,
             );
 
-            if result == 0 {
+            if result != 0 {
                 return Err(WasmSdkError::InvalidTransaction(
                     "Unable to add event".into(),
                 ));

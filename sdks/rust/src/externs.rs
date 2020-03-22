@@ -20,7 +20,12 @@ extern "C" {
     pub fn get_state(addresses: WasmPtrList) -> WasmPtrList;
     pub fn set_state(addr_data: WasmPtrList) -> i32;
     pub fn delete_state(addresses: WasmPtrList) -> WasmPtrList;
-    pub fn add_event(event_type: WasmPtr, attributes: WasmPtrList, data: WasmPtr) -> i32;
+    pub fn add_event(
+        event_type: WasmPtr,
+        attributes: WasmPtrList,
+        data: WasmPtr,
+        data_len: i32
+    ) -> i32;
     pub fn get_ptr_len(ptr: WasmPtr) -> isize;
     pub fn alloc(len: usize) -> WasmPtr;
     pub fn read_byte(offset: isize) -> u8;
