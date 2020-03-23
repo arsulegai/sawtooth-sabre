@@ -526,7 +526,7 @@ impl<'a> WasmExternals<'a> {
         );
 
         match self.context.add_event(event_type, attributes, &data) {
-            Ok(()) => Ok(Some(RuntimeValue::I32(1))),
+            Ok(()) => Ok(Some(RuntimeValue::I32(0))),
             Err(err) => {
                 info!("Add event Error: {}", err);
                 Ok(Some(RuntimeValue::I32(0)))

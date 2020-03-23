@@ -58,6 +58,8 @@ FROM ubuntu:bionic
 
 COPY --from=sabre-tp-builder /project/tp/target/debian/sawtooth-sabre_*.deb /tmp
 
-RUN apt-get update \
- && dpkg -i /tmp/sawtooth-sabre_*.deb || true \
- && apt-get -f -y install
+RUN apt-get update
+
+RUN apt-get install libpgm-5.2-0 libssl1.1 libnorm1 libsodium23 libzmq5 -y -f
+
+RUN dpkg -i /tmp/sawtooth-sabre_*.deb || true
