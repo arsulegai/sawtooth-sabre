@@ -24,7 +24,7 @@ extern "C" {
         event_type: WasmPtr,
         attributes: WasmPtrList,
         data: WasmPtr,
-        data_len: i32
+        //data_len: usize
     ) -> i32;
     pub fn get_ptr_len(ptr: WasmPtr) -> isize;
     pub fn alloc(len: usize) -> WasmPtr;

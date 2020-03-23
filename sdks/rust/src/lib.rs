@@ -327,17 +327,12 @@ impl TransactionContext for SabreTransactionContext {
             // Use the len parameter to determine if the data
             // was sent to the SDK. A dummy "data" is added here
             // to pass through to the TP's extern method.
-            if (i32::max_value() as usize) < data.len() {
-                return Err(WasmSdkError::InvalidTransaction(
-                    "Data size not supported by Sabre".into(),
-                ))
-            }
-            let data_buffer_len: i32 = data.len() as i32;
-            let data_buffer = if data_buffer_len == 0 {
-                WasmBuffer::new("data".as_bytes())?
-            } else {
-                WasmBuffer::new(data)?
-            };
+//            let data_buffer_len = data.len();
+//            let data_buffer = if data_buffer_len == 0 {
+//                WasmBuffer::new("data".as_bytes())?
+//            } else {
+              let data_buffer = WasmBuffer::new(data)?;
+//            };
 
             // Get attributes tuple stored in a collection
             // List starts with a dummy entry "attributes", this is to allow empty
@@ -359,7 +354,7 @@ impl TransactionContext for SabreTransactionContext {
                 event_type_buffer.to_raw(),
                 attributes_buffer.to_raw(),
                 data_buffer.to_raw(),
-                data_buffer_len,
+                //data_buffer_len,
             );
 
             if result != 0 {

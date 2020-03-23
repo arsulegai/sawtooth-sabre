@@ -491,7 +491,7 @@ impl<'a> WasmExternals<'a> {
         event_type_ptr: u32,
         attribute_list_ptr: u32,
         data_ptr: u32,
-        data_len: u32,
+        //data_len: u32,
     ) -> Result<Option<RuntimeValue>, Trap> {
         let attribute_list = match self.ptr_collections.get(&attribute_list_ptr) {
             Some(attributes) => attributes.clone(),
@@ -515,10 +515,10 @@ impl<'a> WasmExternals<'a> {
 
         let event_type = self.ptr_to_string(event_type_ptr)?;
 
-        let mut data = Vec::new();
-        if data_len > 1 {
-            data = self.ptr_to_vec(data_ptr)?;
-        }
+//        let mut data = Vec::new();
+//        if data_len > 1 {
+        let data = self.ptr_to_vec(data_ptr)?;
+//        }
 
         info!(
             "Attempting to add event, event_type: {:?}, attributes: {:?}, data: {:?}",
@@ -550,8 +550,8 @@ impl<'a> Externals for WasmExternals<'a> {
                 let event_type = args.nth(0);
                 let attributes = args.nth(1);
                 let data = args.nth(2);
-                let data_len = args.nth(3);
-                self.add_event(event_type, attributes, data, data_len)
+                //let data_len = args.nth(3);
+                self.add_event(event_type, attributes, data)//, data_len)
             }
             GET_PTR_LEN_IDX => {
                 let addr = args.nth(0);
